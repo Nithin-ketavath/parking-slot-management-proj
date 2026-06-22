@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Slot - SpotFlow Parking</title>
+    <link rel="stylesheet" href="/css/custom.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+
+<body>
+    <!-- Sidebar navigation -->
+    <div class="sidebar">
+        <h2>SpotFlow</h2>
+        <div class="sidebar-menu">
+            <a href="/"><i class="fas fa-th-large"></i> Dashboard</a>
+            <a href="/booking" class="active"><i class="fas fa-parking"></i> Book a Slot</a>
+            <a href="/checkout"><i class="fas fa-sign-out-alt"></i> Checkout</a>
+            <a href="/profile"><i class="fas fa-user-circle"></i> Profile</a>
+            <a href="/admin" th:if="${role} == 'ADMIN'"><i class="fas fa-sliders-h"></i> Admin Console</a>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="main-content">
+        <!-- Toast Notification -->
+        <div id="toast"
+            style="display:none;position:fixed;top:20px;right:20px;z-index:99999;max-width:400px;padding:15px;background:#FEF2F2;color:#991B1B;border:1px solid #FCA5A5;border-radius:var(--radius-sm);box-shadow:var(--shadow-lg);font-size:0.9rem;animation:fadeIn 0.5s;">
+            <span id="toastMsg"></span>
+            <button onclick="document.getElementById('toast').style.display='none'"
+                style="float:right;background:none;border:none;font-size:18px;cursor:pointer;color:#991B1B;font-weight:bold;">&times;</button>
+        </div>
+
+        <div class="topbar fade-in">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <h2 style="font-size: 1.1rem; margin-bottom: 0; font-family: var(--font-base); display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-car text-muted"></i>
+                    Workspace: <strong style="color: var(--accent-color);">Slot Reservations</strong>
+                </h2>
+            </div>
+            <div style="display: flex; align-items: center; gap: 16px;">
+                <span class="username">
+                    <i class="fas fa-user-circle"></i> <span th:text="${username}">Guest</span>
+                    <span th:if="${role} == 'ADMIN'" class="status-badge status-checked-in" style="margin-left: 6px; padding: 2px 8px; font-size: 0.65rem;">Admin</span>
+                </span>
+                <a href="/signout" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; border-radius: var(--radius-sm);">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+
+        <h1 class="fade-in">Book a Parking Slot</h1>
+
+        <div class="form-container fade-in" style="border-left: 4px solid var(--accent-color);">
+            <form id="bookingForm">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="form-group">
+                        <label for="vehicleNumber">Vehicle Registration Number</label>
+                        <input type="text" name="vehicleNumber" id="vehicleNumber" required placeholder="e.g., MH12AB1234" style="font-weight: 600; letter-spacing: 0.05em;">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="vehicleType">Vehicle Category</label>
+                        <select name="vehicleType" id="vehicleType" onchange="filterSlots()">
+                            <option value="">All Categories</option>
+                            <option value="CAR">Car</option>
+                            <option value="BIKE">Bike</option>
+                            <option value="TRUCK">Truck</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="margin-top: 10px;">
+                    <button type="button" class="btn btn-secondary" onclick="loadAvailableSlots()">
+                        <i class="fas fa-sync"></i> Refresh Slots
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="card fade-in">
+            <h2><i class="fas fa-th" style="color: var(--secondary-color);"></i> Select Available Slot</h2>
+            <div id="slotsContainer" class="slots-grid">
+                <div class="text-center py-4">
+                    <div class="loading"></div>
+                    <p class="mt-2 text-muted">Loading available slots...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Selected Slot Details Drawer/Card -->
+        <div id="selectedSlotInfo" class="card fade-in" style="display: none; border-left: 4px solid var(--success-color);">
+            <h2><i class="fas fa-info-circle" style="color: var(--success-color);"></i> Reservation Summary</h2>
+            <div id="slotDetails"></div>
+            <div style="display: flex; gap: 12px; margin-top: 24px;">
+                <button type="button" class="btn btn-success" id="bookSlotBtn" onclick="bookSlot()">
+                    <i class="fas fa-check"></i> Book Selected Slot
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="clearSelection()">
+                    <i class="fas fa-times"></i> Cancel Selection
+                </button>
+            </div>
+        </div>
+
+        <!-- Success Modal -->
+        <div id="successModal" class="modal"
+            style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 1000;">
+            <div class="modal-content"
+                style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 30px; max-width: 500px; width: 90%;">
+                <h3 style="color: var(--success-color); margin-bottom: 20px; display: flex; align-items: center; gap: 10px; font-family: var(--font-heading); font-weight: 700;">
+                    <i class="fas fa-check-circle" style="font-size: 1.5rem;"></i> Booking Confirmed
+                </h3>
+                <div id="bookingDetails" style="display: flex; flex-direction: column; gap: 12px; background: var(--light-color); padding: 18px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); font-size: 0.95rem;">
+                </div>
+                <div style="text-align: right; margin-top: 24px;">
+                    <button class="btn btn-primary" onclick="closeModal()">Complete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedSlot = null;
+        let availableSlots = [];
+
+        function getAuthToken() {
+            try {
+                return localStorage.getItem('authToken');
+            } catch (e) {
+                return null;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const vehicleInput = document.getElementById('vehicleNumber');
+            if (vehicleInput) {
+                vehicleInput.style.textTransform = 'uppercase';
+                vehicleInput.addEventListener('input', function (e) {
+                    const start = this.selectionStart;
+                    const end = this.selectionEnd;
+                    this.value = this.value.toUpperCase();
+                    try {
+                        this.setSelectionRange(start, end);
+                    } catch (err) {}
+                });
+                if (vehicleInput.value) vehicleInput.value = vehicleInput.value.toUpperCase();
+            }
+
+            loadAvailableSlots();
+        });
+
+        function loadAvailableSlots() {
+            const vehicleType = document.getElementById('vehicleType').value;
+            let url = '/api/slots/available';
+
+            if (vehicleType) {
+                url += `/${vehicleType}`;
+            }
+
+            fetch(url)
+                .then(response => response.json())
+                .then(slots => {
+                    availableSlots = slots;
+                    displaySlots(slots);
+                })
+                .catch(error => {
+                    console.error('Error loading slots:', error);
+                    document.getElementById('slotsContainer').innerHTML =
+                        '<div class="text-center py-4"><p class="error">Error loading slots. Please try again.</p></div>';
+                });
+        }
+
+        function displaySlots(slots) {
+            const container = document.getElementById('slotsContainer');
+
+            if (slots.length === 0) {
+                container.innerHTML = '<div class="text-center py-4" style="grid-column: 1/-1;"><p class="text-muted">No available slots found.</p></div>';
+                return;
+            }
+
+            container.innerHTML = '';
+            slots.forEach(slot => {
+                const slotCard = document.createElement('div');
+                slotCard.className = 'slot-card slot-available';
+                slotCard.innerHTML = `
+                    <div class="slot-number">${slot.slotNumber}</div>
+                    <div class="slot-status">Available</div>
+                    <div style="font-size: 0.75rem; margin-top: 6px; font-weight: 500; opacity: 0.8;">${slot.location}</div>
+                    <div style="font-size: 0.75rem; font-weight: 700; color: var(--accent-color); margin-top: 2px;">₹${slot.hourlyRate}/hr</div>
+                `;
+                slotCard.onclick = () => selectSlot(slotCard, slot.slotId);
+                container.appendChild(slotCard);
+            });
+        }
+
+        function selectSlot(cardElem, slotId) {
+            document.querySelectorAll('.slot-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+
+            if (cardElem) {
+                cardElem.classList.add('selected');
+            }
+
+            selectedSlot = availableSlots.find(slot => slot.slotId === slotId);
+
+            document.getElementById('selectedSlotInfo').style.display = 'block';
+            document.getElementById('slotDetails').innerHTML = `
+                <div class="booking-details">
+                    <div class="detail-item">
+                        <div class="detail-label">Slot Number</div>
+                        <div class="detail-value" style="font-size: 1.1rem; color: var(--primary-color); font-weight:700;">${selectedSlot.slotNumber}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Location Area</div>
+                        <div class="detail-value">${selectedSlot.location}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Vehicle Type</div>
+                        <div class="detail-value">${selectedSlot.vehicleType}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Hourly Fare</div>
+                        <div class="detail-value" style="color: var(--success-color); font-weight:700;">₹${selectedSlot.hourlyRate}/hour</div>
+                    </div>
+                </div>
+            `;
+            
+            // Scroll selected details into view smoothly
+            document.getElementById('selectedSlotInfo').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function clearSelection() {
+            selectedSlot = null;
+            document.querySelectorAll('.slot-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            document.getElementById('selectedSlotInfo').style.display = 'none';
+        }
+
+        function getUsername() {
+            const el = document.querySelector('.username span');
+            return el ? el.textContent.trim() : 'Guest';
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').textContent = msg;
+            toast.style.display = 'block';
+            toast.classList.add('fade-in');
+            setTimeout(() => {
+                toast.style.display = 'none';
+                toast.classList.remove('fade-in');
+            }, 3500);
+        }
+
+        function bookSlot() {
+            const vehicleNumber = document.getElementById('vehicleNumber').value;
+            const username = getUsername();
+
+            if (username === 'Guest') {
+                showToast('You need to log in before you can book a slot.');
+                return;
+            }
+
+            if (!vehicleNumber || !selectedSlot) {
+                showToast('Please fill in all fields and select a slot.');
+                return;
+            }
+
+            const token = getAuthToken();
+            const headers = {};
+            if (token) {
+                headers['Authorization'] = 'Bearer ' + token;
+            }
+
+            fetch(`/api/bookings/book/${selectedSlot.slotId}?vehicleNumber=${encodeURIComponent(vehicleNumber)}`, {
+                method: 'POST',
+                headers: headers,
+                credentials: 'include'
+            })
+                .then(async response => {
+                    if (response.status === 401) {
+                        window.location.href = '/login';
+                        return Promise.reject('Unauthorized');
+                    }
+                    if (!response.ok) {
+                        const text = await response.text();
+                        throw new Error(`HTTP ${response.status}: ${text.substring(0, 200)}`);
+                    }
+                    return response.json();
+                })
+                .then(booking => {
+                    document.getElementById('bookingDetails').innerHTML = `
+                        <div style="display:flex; justify-content:space-between;"><strong>Booking ID:</strong> <span style="font-family:monospace; font-weight:600; color:var(--accent-color);">#${booking.bookingId}</span></div>
+                        <div style="display:flex; justify-content:space-between;"><strong>Parking Slot:</strong> <span>${selectedSlot.slotNumber} (${selectedSlot.location})</span></div>
+                        <div style="display:flex; justify-content:space-between;"><strong>Vehicle Reg:</strong> <code>${vehicleNumber}</code></div>
+                        <div style="display:flex; justify-content:space-between;"><strong>Initial Status:</strong> <span class="status-badge status-checked-in" style="font-size:0.65rem; padding: 2px 8px;">${booking.status}</span></div>
+                        <div style="display:flex; justify-content:space-between;"><strong>Reservation Time:</strong> <span>${new Date(booking.bookingTime).toLocaleString()}</span></div>
+                    `;
+
+                    showModal();
+
+                    document.getElementById('bookingForm').reset();
+                    clearSelection();
+                    loadAvailableSlots();
+                })
+                .catch(error => {
+                    console.error('Error booking slot:', error);
+                    showToast('Error booking slot. Please try again.');
+                });
+        }
+
+        function filterSlots() {
+            loadAvailableSlots();
+        }
+
+        function showModal() {
+            document.getElementById('successModal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('successModal').style.display = 'none';
+        }
+
+        window.onclick = function (event) {
+            const modal = document.getElementById('successModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+
+</html>

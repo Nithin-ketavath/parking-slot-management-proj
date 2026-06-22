@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile - SpotFlow Parking</title>
+    <link rel="stylesheet" href="/css/custom.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+
+<body>
+    <!-- Sidebar navigation -->
+    <div class="sidebar">
+        <h2>SpotFlow</h2>
+        <div class="sidebar-menu">
+            <a href="/"><i class="fas fa-th-large"></i> Dashboard</a>
+            <a href="/booking"><i class="fas fa-parking"></i> Book a Slot</a>
+            <a href="/checkout"><i class="fas fa-sign-out-alt"></i> Checkout</a>
+            <a href="/profile" class="active"><i class="fas fa-user-circle"></i> Profile</a>
+            <a href="/admin" th:if="${user?.role} == 'ADMIN'"><i class="fas fa-sliders-h"></i> Admin Console</a>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="topbar fade-in">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <h2 style="font-size: 1.1rem; margin-bottom: 0; font-family: var(--font-base); display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-user text-muted"></i>
+                    Workspace: <strong style="color: var(--accent-color);">User Profile Settings</strong>
+                </h2>
+            </div>
+            <div style="display: flex; align-items: center; gap: 16px;">
+                <span class="username">
+                    <i class="fas fa-user-circle"></i> <span th:text="${user?.username ?: 'Guest'}">Guest</span>
+                    <span th:if="${user?.role} == 'ADMIN'" class="status-badge status-checked-in" style="margin-left: 6px; padding: 2px 8px; font-size: 0.65rem;">Admin</span>
+                </span>
+                <button id="logoutBtn" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; border-radius: var(--radius-sm);">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </div>
+
+        <h1 class="fade-in">Profile Information</h1>
+
+        <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 30px;" class="fade-in">
+            <!-- Left Side: User Profile Card -->
+            <div class="profile-card" style="border: 1px solid var(--border-color); background: white; overflow: hidden; border-radius: var(--radius-md); box-shadow: var(--shadow-sm);">
+                <div class="profile-header" style="background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%); color: white; padding: 40px 30px; text-align: center;">
+                    <div style="width: 80px; height: 80px; background: rgba(20, 184, 166, 0.1); border: 2.5px dashed var(--secondary-color); display: flex; align-items: center; justify-content: center; border-radius: 50%; margin: 0 auto 16px auto;">
+                        <i class="fas fa-user" style="font-size: 2.5rem; color: var(--secondary-color);"></i>
+                    </div>
+                    <h3 th:text="${user?.fullName ?: 'User Profile'}" style="margin:0; font-size:1.5rem; font-weight:700; color: white;">User Profile</h3>
+                    <p th:text="${user?.role ?: 'USER'}" class="status-badge status-checked-in" style="margin-top:12px; font-size:0.7rem; padding: 4px 12px;">USER</p>
+                </div>
+                
+                <div class="profile-body" th:if="${user}" style="padding: 30px;">
+                    <div class="profile-info" style="display: grid; grid-template-columns: 1fr; gap: 16px;">
+                        <div class="info-item">
+                            <i class="fas fa-id-badge"></i>
+                            <div>
+                                <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; font-weight:600;">Account User ID</div>
+                                <div style="font-weight:600; color: var(--primary-color);" th:text="${user.userId}">1</div>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <i class="fas fa-user"></i>
+                            <div>
+                                <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; font-weight:600;">Full Representative Name</div>
+                                <div style="font-weight:600; color: var(--primary-color);" th:text="${user.fullName}">John Doe</div>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <i class="fas fa-at"></i>
+                            <div>
+                                <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; font-weight:600;">System Username</div>
+                                <div style="font-weight:600; color: var(--primary-color);" th:text="${user.username}">john</div>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <i class="fas fa-envelope"></i>
+                            <div>
+                                <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; font-weight:600;">Email Address</div>
+                                <div style="font-weight:600; color: var(--primary-color);" th:text="${user.email}">john@example.com</div>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <i class="fas fa-phone"></i>
+                            <div>
+                                <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; font-weight:600;">Phone Line Number</div>
+                                <div style="font-weight:600; color: var(--primary-color);" th:text="${user.phoneNumber}">9999999999</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div th:if="${user} == null" class="text-center py-5">
+                    <i class="fas fa-exclamation-triangle fa-3x" style="color: var(--warning-color); margin-bottom: 20px;"></i>
+                    <p class="text-muted">No user information available.</p>
+                </div>
+            </div>
+
+            <!-- Right Side: Recent Bookings Timeline -->
+            <div class="card" style="border-top: 4px solid var(--secondary-color);">
+                <h2><i class="fas fa-history" style="color: var(--secondary-color);"></i> Recent Booking History</h2>
+                <ul id="recent-bookings" class="list" style="margin-top: 12px;">
+                    <li class="text-muted">
+                        <div class="loading" style="margin-right: 8px;"></div> Loading your bookings...
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function getAuthToken() {
+            return localStorage.getItem('authToken');
+        }
+        
+        function loadRecentBookings() {
+            const token = getAuthToken();
+            const headers = token ? { 'Authorization': 'Bearer ' + token } : {};
+            fetch('/api/bookings/recent', { headers })
+                .then(res => {
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    return res.json();
+                })
+                .then(data => {
+                    const list = document.getElementById('recent-bookings');
+                    list.innerHTML = '';
+                    if (!Array.isArray(data) || data.length === 0) {
+                        list.innerHTML = '<li class="text-muted"><i class="fas fa-info-circle"></i> No recent bookings found in records.</li>';
+                        return;
+                    }
+                    data.forEach(b => {
+                        const li = document.createElement('li');
+                        const when = b.bookingTime ? new Date(b.bookingTime).toLocaleString() : 'N/A';
+                        const slot = b.slot && (b.slot.slotNumber || b.slot.slotId) ? (b.slot.slotNumber || ('#' + b.slot.slotId)) : 'N/A';
+                        
+                        li.innerHTML = `
+                            <div style="display:flex; flex-direction:column; gap:4px; width:100%;">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <strong style="color:var(--primary-color);">Reserved Slot: ${slot}</strong>
+                                    <span style="font-size:0.75rem; background:rgba(15,23,42,0.05); padding:2px 8px; border-radius:20px; color:var(--text-secondary);">${b.status}</span>
+                                </div>
+                                <div style="font-size:0.8rem; color:var(--text-secondary);"><i class="far fa-clock"></i> Booked on: ${when}</div>
+                            </div>
+                        `;
+                        list.appendChild(li);
+                    });
+                })
+                .catch(err => {
+                    document.getElementById('recent-bookings').innerHTML = '<li class="error"><i class="fas fa-exclamation-triangle"></i> Error loading bookings. Please try again.</li>';
+                });
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            loadRecentBookings();
+            document.getElementById('logoutBtn').addEventListener('click', function () {
+                localStorage.removeItem('authToken');
+                window.location.href = '/login';
+            });
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Admin Console - SpotFlow Parking</title>
+    <link rel="stylesheet" th:href="@{/css/custom.css}" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+
+<body>
+    <!-- Sidebar navigation -->
+    <div class="sidebar">
+        <h2>SpotFlow</h2>
+        <div class="sidebar-menu">
+            <a href="/"><i class="fas fa-th-large"></i> Dashboard</a>
+            <a href="/booking"><i class="fas fa-parking"></i> Book a Slot</a>
+            <a href="/checkout"><i class="fas fa-sign-out-alt"></i> Checkout</a>
+            <a href="/profile"><i class="fas fa-user-circle"></i> Profile</a>
+            <a href="/admin" class="active"><i class="fas fa-sliders-h"></i> Admin Console</a>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="topbar fade-in">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <h2 style="font-size: 1.1rem; margin-bottom: 0; font-family: var(--font-base); display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-cog text-muted"></i>
+                    Workspace: <strong style="color: var(--accent-color);">System Operations Panel</strong>
+                </h2>
+            </div>
+            <div style="display: flex; align-items: center; gap: 16px;">
+                <span class="username">
+                    <i class="fas fa-user-shield"></i> <span id="adminUsername">Admin</span>
+                    <span class="status-badge status-checked-in" style="margin-left: 6px; padding: 2px 8px; font-size: 0.65rem;">SuperAdmin</span>
+                </span>
+                <a href="/signout" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; border-radius: var(--radius-sm);">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+
+        <h1 class="fade-in">System Control Console</h1>
+
+        <div style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 30px;" class="fade-in">
+            <!-- Left Side: Users Administration Table -->
+            <div class="card" style="border-left: 4px solid var(--accent-color);">
+                <h2><i class="fas fa-users" style="color: var(--accent-color);"></i> User Accounts Management</h2>
+                <p class="text-muted" style="font-size: 0.85rem; margin-top: -12px; margin-bottom: 20px;">Review registered clients, restrict access, or delete user records.</p>
+                <div style="overflow-x: auto;">
+                    <table id="usersTable" aria-describedby="usersTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Username</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Blocked</th>
+                                <th style="text-align: right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Loaded dynamically by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Right Side: Pricing Rates Configuration -->
+            <div class="card" style="border-left: 4px solid var(--secondary-color);">
+                <h2><i class="fas fa-tags" style="color: var(--secondary-color);"></i> Global Hourly Pricing</h2>
+                <p class="text-muted" style="font-size: 0.85rem; margin-top: -12px; margin-bottom: 24px;">Configure baseline hourly parking rates by vehicle category.</p>
+                <form id="pricingForm">
+                    <div class="form-group">
+                        <label for="car"><i class="fas fa-car" style="width: 16px;"></i> CAR Category Rate (₹/hr)</label>
+                        <input type="number" step="any" id="car" name="CAR" value="50" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="bike"><i class="fas fa-motorcycle" style="width: 16px;"></i> BIKE Category Rate (₹/hr)</label>
+                        <input type="number" step="any" id="bike" name="BIKE" value="25" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="truck"><i class="fas fa-truck" style="width: 16px;"></i> TRUCK Category Rate (₹/hr)</label>
+                        <input type="number" step="any" id="truck" name="TRUCK" value="100" required />
+                    </div>
+                    
+                    <div style="text-align: right; margin-top: 24px;">
+                        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px;">
+                            <i class="fas fa-save"></i> Commit Rate Settings
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentAdmin = { username: null, role: null };
+
+        async function fetchCurrentAdmin() {
+            try {
+                const r = await fetch('/api/admin/me', { credentials: 'include' });
+                if (r.ok) {
+                    currentAdmin = await r.json();
+                    if (currentAdmin.username) {
+                        document.getElementById('adminUsername').textContent = currentAdmin.username;
+                    }
+                }
+            } catch (e) { console.warn('could not get current admin', e); }
+        }
+
+        async function fetchUsers() {
+            const resp = await fetch('/api/admin/users', { credentials: 'include' });
+            if (!resp.ok) { console.error('failed to fetch users', resp.status); return; }
+            const users = await resp.json();
+            const tbody = document.querySelector('#usersTable tbody');
+            tbody.innerHTML = '';
+            users.forEach(u => {
+                const tr = document.createElement('tr');
+                const blockStatus = u.blocked ? '<span class="status-badge status-occupied">Yes</span>' : '<span class="status-badge status-available">No</span>';
+                
+                tr.innerHTML = `
+                    <td><strong>#${u.userId}</strong></td>
+                    <td><span style="font-weight:600;">${escapeHtml(u.username)}</span></td>
+                    <td>${escapeHtml(u.email)}</td>
+                    <td><span class="status-badge status-checked-in" style="font-size:0.65rem; padding:2px 8px;">${u.role}</span></td>
+                    <td>${blockStatus}</td>
+                `;
+                
+                const actions = document.createElement('td');
+                actions.style.textAlign = 'right';
+                
+                const blockBtn = document.createElement('button');
+                blockBtn.className = u.blocked ? 'btn btn-secondary' : 'btn btn-warning';
+                blockBtn.style.padding = '6px 12px';
+                blockBtn.style.fontSize = '0.75rem';
+                blockBtn.innerHTML = u.blocked ? '<i class="fas fa-unlock"></i> Unblock' : '<i class="fas fa-ban"></i> Block';
+                
+                if (u.role === 'ADMIN' || (currentAdmin.username && currentAdmin.username === u.username)) {
+                    blockBtn.disabled = true;
+                    blockBtn.title = 'Cannot block admins or self';
+                } else {
+                    blockBtn.onclick = async () => {
+                        blockBtn.disabled = true;
+                        await fetch(`/api/admin/users/${u.userId}/block?block=${!u.blocked}`, { method: 'POST', credentials: 'include' });
+                        await fetchUsers();
+                    };
+                }
+                
+                const delBtn = document.createElement('button');
+                delBtn.className = 'btn btn-danger';
+                delBtn.style.padding = '6px 12px';
+                delBtn.style.fontSize = '0.75rem';
+                delBtn.style.marginLeft = '8px';
+                delBtn.innerHTML = '<i class="fas fa-trash-alt"></i> Delete';
+                
+                if (u.role === 'ADMIN' || (currentAdmin.username && currentAdmin.username === u.username)) {
+                    delBtn.disabled = true;
+                    delBtn.title = 'Cannot delete admins or self';
+                } else {
+                    delBtn.onclick = async () => {
+                        if (!confirm('Delete user ' + u.username + '?')) return;
+                        delBtn.disabled = true;
+                        await fetch(`/api/admin/users/${u.userId}`, { method: 'DELETE', credentials: 'include' });
+                        await fetchUsers();
+                    };
+                }
+                
+                actions.appendChild(blockBtn);
+                actions.appendChild(delBtn);
+                tr.appendChild(actions);
+                tbody.appendChild(tr);
+            });
+        }
+
+        function escapeHtml(s) {
+            if (!s) return '';
+            return s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+        }
+
+        async function loadPricing() {
+            const resp = await fetch('/api/admin/pricing', { credentials: 'include' });
+            if (!resp.ok) return;
+            const list = await resp.json();
+            const map = {};
+            list.forEach(p => { map[p.vehicleType] = p.hourlyRate; });
+            if (map.CAR) document.getElementById('car').value = map.CAR;
+            if (map.BIKE) document.getElementById('bike').value = map.BIKE;
+            if (map.TRUCK) document.getElementById('truck').value = map.TRUCK;
+        }
+
+        document.getElementById('pricingForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const data = {
+                CAR: parseFloat(form.CAR.value),
+                BIKE: parseFloat(form.BIKE.value),
+                TRUCK: parseFloat(form.TRUCK.value)
+            };
+            const resp = await fetch('/api/admin/pricing', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(data)
+            });
+            if (resp.ok) {
+                alert('Pricing saved successfully!');
+                await loadPricing();
+            } else {
+                alert('Failed to save pricing rates.');
+            }
+        });
+
+        (async () => {
+            await fetchCurrentAdmin();
+            await fetchUsers();
+            await loadPricing();
+        })();
+    </script>
+</body>
+
+</html>
